@@ -30,6 +30,7 @@
 (require 'spotify-api)
 (require 'spotify-track-search)
 (require 'spotify-playlist-search)
+(require 'spotify-album-search)
 (require 'spotify-device-select)
 (require 'spotify-controller)
 (require 'spotify-remote)
@@ -61,6 +62,15 @@
     (with-current-buffer buffer
       (spotify-playlist-search-mode)
       (spotify-playlist-search-update query 1))))
+
+;;;###autoload
+(defun spotify-album-search (query)
+  "Search for albums that match the given QUERY string."
+  (interactive "sSpotify Search (Albums): ")
+  (let ((buffer (get-buffer-create (format "*Album Search: %s*" query))))
+    (with-current-buffer buffer
+      (spotify-album-search-mode)
+      (spotify-album-search-update query 1))))
 
 ;;;###autoload
 (defun spotify-recently-played ()
@@ -116,6 +126,16 @@ Prompt for the NAME and whether it should be made PUBLIC."
           (if new-playlist
               (message (format "Playlist '%s' created" (spotify-get-item-name new-playlist)))
             (message "Error creating the playlist"))))))))
+
+;;;###autoload
+(defun spotify-my-albums ()
+  "Display the current users's saved albums."
+  (interactive)
+  (let ((buffer (get-buffer-create "*Saved Albums*")))
+    (with-current-buffer buffer
+      (spotify-album-search-mode)
+      (spotify-my-albums-update 1))))
+
 
 ;;;###autoload
 (defun spotify-select-device ()

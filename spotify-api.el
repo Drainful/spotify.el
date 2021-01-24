@@ -82,7 +82,7 @@ globally relevant."
 (defconst spotify-api-endpoint     "https://api.spotify.com/v1")
 (defconst spotify-oauth2-auth-url  "https://accounts.spotify.com/authorize")
 (defconst spotify-oauth2-token-url "https://accounts.spotify.com/api/token")
-(defconst spotify-oauth2-scopes    "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-private user-read-playback-state user-modify-playback-state user-read-playback-state user-read-recently-played")
+(defconst spotify-oauth2-scopes    "playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-private user-read-playback-state user-modify-playback-state user-read-playback-state user-read-recently-played user-library-read user-library-modify")
 (defconst spotify-oauth2-callback  (concat "http://localhost:" spotify-oauth2-callback-port "/spotify-callback"))
 
 (defun spotify-httpd-stop ()
@@ -238,6 +238,10 @@ Call CALLBACK with the parsed JSON response."
   "Return playlist items from the given search results JSON object."
   (spotify-get-items (gethash 'playlists json)))
 
+(defun spotify-get-search-album-items (json)
+  "Return album items from the given search results JSON object."
+  (spotify-get-items (gethash 'albums json)))
+
 (defun spotify-get-message (json)
   "Return the message from the featured playlists JSON object."
   (gethash 'message json))
@@ -303,6 +307,10 @@ Call CALLBACK with the parsed JSON response."
 (defun spotify-get-playlist-track-count (json)
   "Return the number of tracks of the given playlist JSON object."
   (gethash 'total (gethash 'tracks json)))
+
+(defun spotify-get-album-track-count (json)
+  "Return the number of tracks of the given album JSON object."
+  (gethash 'total_tracks json))
 
 (defun spotify-get-playlist-owner-id (json)
   "Return the owner id of the given playlist JSON object."
@@ -424,6 +432,42 @@ Call CALLBACK with results."
      nil
      callback)))
 
+(defun spotify-api-my-albums (page callback)
+  "Call CALLBACK with the PAGE of albums for the current user."
+  (let ((offset (* spotify-api-search-limit (1- page))))
+    (spotify-api-call-async
+     "GET"
+     (concat "/me/albums?" 
+             (url-build-query-string `((limit  ,spotify-api-search-limit)
+                                       (offset ,offset))
+                                     nil t))
+     nil
+     callback)))
+
+(defun spotify-api-album-save (album callback)
+  "Save ALBUM in the current user's library.
+Call CALLBACK with results."
+  (let ((album-id (spotify-get-item-id album)))
+    (spotify-api-call-async
+     "PUT"
+     (format "/me/albums?ids=%s"
+             (url-hexify-string album-id))
+     nil
+     callback))
+  (spotify-my-albums))
+
+(defun spotify-api-album-remove (album callback)
+  "Remove ALBUM from the current user's library.
+Call CALLBACK with results."
+  (let ((album-id (spotify-get-item-id album)))
+    (spotify-api-call-async
+     "DELETE"
+     (format "/me/albums?ids=%s"
+             (url-hexify-string album-id))
+     nil
+     callback))
+  (spotify-my-albums))
+
 (defun spotify-api-album-tracks (album page callback)
   "Call CALLBACK with PAGE of tracks for ALBUM."
   (let ((album-id (spotify-get-item-id album))
@@ -438,6 +482,14 @@ Call CALLBACK with results."
                                      nil t))
      nil
      callback)))
+
+(defun spotify-get-album-artist-name (json)
+  "Return the first simplified artist object from the given album JSON object."
+  (car (gethash 'artists json)))
+
+(defun spotify-get-library-item-album (json)
+  "Return the album object from the given library entry JSON object."
+  (gethash 'album json))
 
 (defun spotify-popularity-bar (popularity)
   "Return the popularity indicator bar proportional to POPULARITY.
